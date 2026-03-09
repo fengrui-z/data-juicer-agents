@@ -29,65 +29,164 @@ def _env_flag(name: str, default: bool) -> bool:
     return default
 
 
+@dataclass
+class ValidationError:
+    """Categorized validation error with suggestion."""
+    category: str  # path | operator | combination | config
+    field: str
+    message: str
+    suggestion: str
+
+    def to_dict(self) -> Dict[str, str]:
+        return {
+            "category": self.category,
+            "field": self.field,
+            "message": self.message,
+            "suggestion": self.suggestion,
+        }
+
+
 class PlanValidator:
     """Validate plan schema and local filesystem preconditions."""
 
     @staticmethod
-    def validate(plan: PlanModel) -> List[str]:
-        errors = validate_plan(plan)
+    def validate_with_suggestions(plan: PlanModel) -> List[ValidationError]:
+        """Validate plan and return categorized errors with fix suggestions."""
+        errors: List[ValidationError] = []
 
+        # Path validations
         dataset_path = Path(plan.dataset_path)
         if not dataset_path.exists():
-            errors.append(f"dataset_path does not exist: {plan.dataset_path}")
+            errors.append(ValidationError(
+                category="path",
+                field="dataset_path",
+                message=f"dataset_path does not exist: {plan.dataset_path}",
+                suggestion="Provide a valid path to an existing dataset file (e.g., data/dataset.jsonl)",
+            ))
 
         export_parent = Path(plan.export_path).expanduser().resolve().parent
         if not export_parent.exists():
-            errors.append(
-                f"export parent directory does not exist: {export_parent}",
-            )
-
-        if plan.modality == "text" and not plan.text_keys:
-            errors.append("text modality requires text_keys")
-
-        if plan.modality == "image" and not plan.image_key:
-            errors.append("image modality requires image_key")
-
-        if plan.modality == "multimodal":
-            if not plan.text_keys:
-                errors.append("multimodal modality requires text_keys")
-            if not plan.image_key:
-                errors.append("multimodal modality requires image_key")
+            errors.append(ValidationError(
+                category="path",
+                field="export_path",
+                message=f"export parent directory does not exist: {export_parent}",
+                suggestion=f"Create the directory first: mkdir -p {export_parent}",
+            ))
 
         if plan.custom_operator_paths:
             for raw_path in plan.custom_operator_paths:
                 path = Path(str(raw_path)).expanduser()
                 if not path.exists():
-                    errors.append(f"custom_operator_path does not exist: {path}")
+                    errors.append(ValidationError(
+                        category="path",
+                        field="custom_operator_paths",
+                        message=f"custom_operator_path does not exist: {path}",
+                        suggestion="Provide a valid path to custom operator directory or remove this path",
+                    ))
 
-        # Validate operator names against installed Data-Juicer operator registry.
+        # Config validations
+        if plan.modality == "text" and not plan.text_keys:
+            errors.append(ValidationError(
+                category="config",
+                field="text_keys",
+                message="text modality requires text_keys",
+                suggestion="Specify text_keys field, e.g., ['text'] or ['content']",
+            ))
+
+        if plan.modality == "image" and not plan.image_key:
+            errors.append(ValidationError(
+                category="config",
+                field="image_key",
+                message="image modality requires image_key",
+                suggestion="Specify image_key field, e.g., 'image' or 'images'",
+            ))
+
+        if plan.modality == "multimodal":
+            if not plan.text_keys:
+                errors.append(ValidationError(
+                    category="config",
+                    field="text_keys",
+                    message="multimodal modality requires text_keys",
+                    suggestion="Specify text_keys field for multimodal data, e.g., ['text']",
+                ))
+            if not plan.image_key:
+                errors.append(ValidationError(
+                    category="config",
+                    field="image_key",
+                    message="multimodal modality requires image_key",
+                    suggestion="Specify image_key field for multimodal data, e.g., 'image'",
+                ))
+
+        # Operator validations
         available_ops = get_available_operator_names()
-        unknown_ops = []
+        unknown_ops: List[str] = []
         if available_ops:
             unknown_ops = [op.name for op in plan.operators if op.name not in available_ops]
 
-        # Only load custom operators when there are unresolved operators.
+        # Try loading custom operators
         if unknown_ops and plan.custom_operator_paths and not errors:
             try:
                 from data_juicer.config.config import load_custom_operators
-
                 load_custom_operators([str(item) for item in plan.custom_operator_paths])
                 get_available_operator_names.cache_clear()  # type: ignore[attr-defined]
                 available_ops = get_available_operator_names()
                 unknown_ops = [op.name for op in plan.operators if op.name not in available_ops]
             except Exception as exc:
-                errors.append(f"failed to load custom operators: {exc}")
+                errors.append(ValidationError(
+                    category="operator",
+                    field="custom_operator_paths",
+                    message=f"failed to load custom operators: {exc}",
+                    suggestion="Check custom operator paths and ensure they contain valid Data-Juicer operators",
+                ))
 
         for op_name in unknown_ops:
-            errors.append(
-                f"unsupported operator '{op_name}'; not found in installed Data-Juicer operators"
-            )
+            errors.append(ValidationError(
+                category="operator",
+                field="operators",
+                message=f"unsupported operator '{op_name}'; not found in installed Data-Juicer operators",
+                suggestion=f"Use a valid operator name. Run 'djx retrieve --intent \"{op_name}\"' to find similar operators",
+            ))
+
+        # Schema validations
+        if not plan.operators:
+            errors.append(ValidationError(
+                category="config",
+                field="operators",
+                message="operators list is empty",
+                suggestion="Add at least one operator to the plan",
+            ))
+
+        if not plan.dataset_path:
+            errors.append(ValidationError(
+                category="config",
+                field="dataset_path",
+                message="dataset_path is required",
+                suggestion="Specify the input dataset path",
+            ))
+
+        if not plan.export_path:
+            errors.append(ValidationError(
+                category="config",
+                field="export_path",
+                message="export_path is required",
+                suggestion="Specify the output path for processed data",
+            ))
 
         return errors
+
+    @staticmethod
+    def validate(plan: PlanModel) -> List[str]:
+        """Validate plan and return error messages (backward compatible)."""
+        # Use validate_with_suggestions internally to avoid duplication
+        errors = PlanValidator.validate_with_suggestions(plan)
+        # Also run schema validation from validate_plan
+        schema_errors = validate_plan(plan)
+        # Combine and deduplicate
+        messages = [e.message for e in errors]
+        for err in schema_errors:
+            if err not in messages:
+                messages.append(err)
+        return messages
 
     @staticmethod
     def llm_review(
@@ -129,146 +228,8 @@ class PlanValidator:
             return {"errors": [], "warnings": []}
 
 
-@dataclass
-class ValidationError:
-    """Categorized validation error with suggestion."""
-    category: str  # path | operator | combination | config
-    field: str
-    message: str
-    suggestion: str
-
-    def to_dict(self) -> Dict[str, str]:
-        return {
-            "category": self.category,
-            "field": self.field,
-            "message": self.message,
-            "suggestion": self.suggestion,
-        }
-
-
-def validate_with_suggestions(plan: PlanModel) -> List[ValidationError]:
-    """Validate plan and return categorized errors with fix suggestions."""
-    errors: List[ValidationError] = []
-
-    # Path validations
-    dataset_path = Path(plan.dataset_path)
-    if not dataset_path.exists():
-        errors.append(ValidationError(
-            category="path",
-            field="dataset_path",
-            message=f"dataset_path does not exist: {plan.dataset_path}",
-            suggestion="Provide a valid path to an existing dataset file (e.g., data/dataset.jsonl)",
-        ))
-
-    export_parent = Path(plan.export_path).expanduser().resolve().parent
-    if not export_parent.exists():
-        errors.append(ValidationError(
-            category="path",
-            field="export_path",
-            message=f"export parent directory does not exist: {export_parent}",
-            suggestion=f"Create the directory first: mkdir -p {export_parent}",
-        ))
-
-    if plan.custom_operator_paths:
-        for raw_path in plan.custom_operator_paths:
-            path = Path(str(raw_path)).expanduser()
-            if not path.exists():
-                errors.append(ValidationError(
-                    category="path",
-                    field="custom_operator_paths",
-                    message=f"custom_operator_path does not exist: {path}",
-                    suggestion="Provide a valid path to custom operator directory or remove this path",
-                ))
-
-    # Config validations
-    if plan.modality == "text" and not plan.text_keys:
-        errors.append(ValidationError(
-            category="config",
-            field="text_keys",
-            message="text modality requires text_keys",
-            suggestion="Specify text_keys field, e.g., ['text'] or ['content']",
-        ))
-
-    if plan.modality == "image" and not plan.image_key:
-        errors.append(ValidationError(
-            category="config",
-            field="image_key",
-            message="image modality requires image_key",
-            suggestion="Specify image_key field, e.g., 'image' or 'images'",
-        ))
-
-    if plan.modality == "multimodal":
-        if not plan.text_keys:
-            errors.append(ValidationError(
-                category="config",
-                field="text_keys",
-                message="multimodal modality requires text_keys",
-                suggestion="Specify text_keys field for multimodal data, e.g., ['text']",
-            ))
-        if not plan.image_key:
-            errors.append(ValidationError(
-                category="config",
-                field="image_key",
-                message="multimodal modality requires image_key",
-                suggestion="Specify image_key field for multimodal data, e.g., 'image'",
-            ))
-
-    # Operator validations
-    available_ops = get_available_operator_names()
-    unknown_ops: List[str] = []
-    if available_ops:
-        unknown_ops = [op.name for op in plan.operators if op.name not in available_ops]
-
-    # Try loading custom operators
-    if unknown_ops and plan.custom_operator_paths and not errors:
-        try:
-            from data_juicer.config.config import load_custom_operators
-            load_custom_operators([str(item) for item in plan.custom_operator_paths])
-            get_available_operator_names.cache_clear()  # type: ignore[attr-defined]
-            available_ops = get_available_operator_names()
-            unknown_ops = [op.name for op in plan.operators if op.name not in available_ops]
-        except Exception as exc:
-            errors.append(ValidationError(
-                category="operator",
-                field="custom_operator_paths",
-                message=f"failed to load custom operators: {exc}",
-                suggestion="Check custom operator paths and ensure they contain valid Data-Juicer operators",
-            ))
-
-    for op_name in unknown_ops:
-        errors.append(ValidationError(
-            category="operator",
-            field="operators",
-            message=f"unsupported operator '{op_name}'; not found in installed Data-Juicer operators",
-            suggestion=f"Use a valid operator name. Run 'djx retrieve --intent \"{op_name}\"' to find similar operators",
-        ))
-
-    # Schema validations
-    if not plan.operators:
-        errors.append(ValidationError(
-            category="config",
-            field="operators",
-            message="operators list is empty",
-            suggestion="Add at least one operator to the plan",
-        ))
-
-    if not plan.dataset_path:
-        errors.append(ValidationError(
-            category="config",
-            field="dataset_path",
-            message="dataset_path is required",
-            suggestion="Specify the input dataset path",
-        ))
-
-    if not plan.export_path:
-        errors.append(ValidationError(
-            category="config",
-            field="export_path",
-            message="export_path is required",
-            suggestion="Specify the output path for processed data",
-        ))
-
-    return errors
+# Backward-compatible function alias
+validate_with_suggestions = PlanValidator.validate_with_suggestions
 
 
 __all__ = ["PlanValidator", "ValidationError", "validate_with_suggestions"]
