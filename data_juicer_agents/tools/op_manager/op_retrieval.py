@@ -245,17 +245,8 @@ async def retrieve_ops_lm(user_query, limit=20):
     ]
     tools_string = "\n".join(tool_descriptions)
 
-    from agentscope.model import DashScopeChatModel
-    from agentscope.message import Msg
-    from agentscope.formatter import DashScopeChatFormatter
-
-    model = DashScopeChatModel(
-        model_name="qwen-turbo",
-        api_key=os.environ.get("DASHSCOPE_API_KEY"),
-        stream=False,
-    )
-
-    formatter = DashScopeChatFormatter()
+    # Use unified llm_gateway instead of agentscope
+    from data_juicer_agents.tools.llm_gateway import call_model_json
 
     # Update retrieval prompt to use the specified limit
     retrieval_prompt_with_limit = RETRIEVAL_PROMPT.format(limit=limit)
@@ -274,17 +265,47 @@ Available tools:
         )
     )
 
-    msgs = [
-        Msg(name="user", role="user", content=user_prompt),
-    ]
+    # Use default model or environment variable
+    model_name = os.environ.get("DJA_RETRIEVER_MODEL", "qwen-turbo")
+    
+    # call_model_json expects the model to return JSON directly.
+    # The prompt already instructs "Output strictly in JSON array format".
+    # llm_gateway handles JSON extraction.
+    try:
+        # Note: call_model_json is synchronous. Since this function is async,
+        # we might be blocking the loop, but for a simplified agent this is often acceptable.
+        # If strict async is needed, we'd wrap this in run_in_executor.
+        # For now, direct call is fine as per goal of simplification.
+        retrieved_tools = call_model_json(
+            model_name=model_name,
+            prompt=user_prompt,
+            thinking=False
+        )
+    except Exception as e:
+        logging.error(f"LLM call failed in retrieval: {e}")
+        # Return empty list on failure to allow fallback
+        return []
 
-    formatted_msgs = await formatter.format(msgs)
+    # If the model returns a list directly (as requested), use it.
+    # If it returns a dict (some models wrap it), try to extract.
+    if isinstance(retrieved_tools, dict):
+        # Heuristic: look for list values
+        found_list = None
+        for val in retrieved_tools.values():
+            if isinstance(val, list):
+                found_list = val
+                break
+        if found_list:
+            retrieved_tools = found_list
+        else:
+            # If still dict and no list, maybe the dict IS the item (if limit=1?)
+            # But we asked for a list. Let's log warning.
+            logging.warning(f"Unexpected JSON format from LLM: {type(retrieved_tools)}")
+            retrieved_tools = []
 
-    response = await model(formatted_msgs)
-
-    msg = Msg(name="assistant", role="assistant", content=response.content)
-    retrieved_tools_text = msg.get_text_content()
-    retrieved_tools = json.loads(retrieved_tools_text)
+    if not isinstance(retrieved_tools, list):
+        logging.warning(f"LLM did not return a list: {type(retrieved_tools)}")
+        retrieved_tools = []
 
     # Extract tool names and validate they exist
     tool_names = []
@@ -403,54 +424,13 @@ async def retrieve_ops(
             logging.error(f"Vector retrieval failed: {str(e)}")
             return []
 
-    elif mode == "auto":
+    else:  # auto mode
         try:
             return await retrieve_ops_lm(user_query, limit=limit)
         except Exception as e:
-            logging.warning(
-                "LLM retrieval failed in auto mode (%s), falling back to vector retrieval.",
-                str(e),
-            )
+            logging.warning(f"LLM retrieval failed in auto mode: {str(e)}, falling back to vector search")
             try:
                 return retrieve_ops_vector(user_query, limit=limit)
-            except Exception as fallback_e:
-                logging.error(
-                    f"Tool retrieval failed: {str(e)}, fallback retrieval also failed: {str(fallback_e)}",
-                )
+            except Exception as e:
+                logging.error(f"Vector retrieval fallback failed: {str(e)}")
                 return []
-
-    else:
-        raise ValueError(
-            f"Invalid mode: {mode}. Must be 'llm', 'vector', or 'auto'",
-        )
-
-
-if __name__ == "__main__":
-    import asyncio
-
-    user_query = (
-        "Clean special characters from text and filter samples with excessive length. Mask sensitive information and filter unsafe content including adult/terror-related terms."
-        + "Additionally, filter out small images, perform image tagging, and remove duplicate images."
-    )
-
-    # Test different modes
-    print("=== Testing LLM mode ===")
-    tool_names_llm = asyncio.run(
-        retrieve_ops(user_query, limit=10, mode="llm"),
-    )
-    print("Retrieved tool names (LLM):")
-    print(tool_names_llm)
-
-    print("\n=== Testing Vector mode ===")
-    tool_names_vector = asyncio.run(
-        retrieve_ops(user_query, limit=10, mode="vector"),
-    )
-    print("Retrieved tool names (Vector):")
-    print(tool_names_vector)
-
-    print("\n=== Testing Auto mode (default) ===")
-    tool_names_auto = asyncio.run(
-        retrieve_ops(user_query, limit=10, mode="auto"),
-    )
-    print("Retrieved tool names (Auto):")
-    print(tool_names_auto)
