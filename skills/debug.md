@@ -1,8 +1,8 @@
 ---
 name: debug
-description: Troubleshoot errors and issues
+description: Troubleshoot tool execution errors
 when:
-  - execution failed
+  - tool execution failed
   - error message present
   - user_intent contains ["error", "failed", "not working", "出错", "失败", "排查", "问题"]
 patches:
@@ -14,7 +14,7 @@ patches:
 
 # Debug Skill
 
-Troubleshoot Data-Juicer errors and issues.
+Troubleshoot Data-Juicer tool execution errors.
 
 ## Quick Diagnosis
 
@@ -27,138 +27,151 @@ Troubleshoot Data-Juicer errors and issues.
 
 ---
 
-## Common Issues
+## Common Tool Errors
 
-### 1. API/Model Errors
+### inspect_dataset Errors
 
-**Symptoms:**
-- "API key not found"
-- "Unauthorized"
-- "Model not available"
+| Error | Cause | Solution |
+|-------|-------|----------|
+| File not found | Invalid path | Check `dataset_path` |
+| Parse error | Invalid JSONL | Validate file format |
 
-**Quick Fix:**
-```bash
-# Check API key
-echo $DASHSCOPE_API_KEY
-
-# Set if missing
-export DASHSCOPE_API_KEY="your_key"
+**Debug:**
+```json
+{
+  "command": "head -1 ./input.jsonl | python -m json.tool"
+}
 ```
-
-See [patches/api-keys.md](patches/api-keys.md) for details.
 
 ---
 
-### 2. Timeout Errors
+### retrieve_operators Errors
 
-**Symptoms:**
-- "Execution timed out"
-- Process hangs
+| Error | Cause | Solution |
+|-------|-------|----------|
+| No candidates | Poor intent | Try broader search terms |
+| API error | Missing key | Set `DASHSCOPE_API_KEY` |
 
-**Quick Fix:**
-```bash
-djx apply --plan ./plans/plan_xxx.yaml --yes --timeout 1800
+**Debug:**
+```json
+{"intent": "list all operators", "top_k": 50, "mode": "vector"}
 ```
-
-See [patches/timeout.md](patches/timeout.md) for details.
 
 ---
 
-### 3. Operator Not Found
+### build_*_spec Errors
 
-**Symptoms:**
-- "Operator 'xxx' not found"
-- Plan validation fails
-
-**Quick Fix:**
-```bash
-# Verify custom operator path
-ls ./custom_ops/
-
-# Include in plan command
-djx plan "..." --custom-operator-paths ./custom_ops
-```
-
-See [patches/custom-ops.md](patches/custom-ops.md) for details.
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Invalid profile | Bad inspect result | Re-run `inspect_dataset` |
+| Unknown operator | Typo in name | Check `retrieve_operators` results |
 
 ---
 
-### 4. Dataset Errors
+### apply_recipe Errors
 
-**Symptoms:**
-- "Invalid JSONL"
-- "Field 'text' not found"
-- Parse errors
-
-**Quick Fix:**
-```bash
-# Validate JSONL format
-head -1 ./data/input.jsonl | jq .
-
-# Check dataset with retrieve
-djx retrieve "check" --dataset ./data/input.jsonl
-```
-
-See [patches/dataset.md](patches/dataset.md) for details.
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Plan not found | Wrong path | Verify `plan_path` |
+| Timeout | Large dataset | Increase `timeout` |
+| Operator error | Bad params | Check operator configuration |
 
 ---
 
-## Diagnostic Commands
+## Diagnostic Tools
+
+### Check file exists
+
+```json
+{"command": "ls -la ./plans/", "timeout": 10}
+```
+
+### Validate JSONL
+
+```json
+{"command": "head -5 ./input.jsonl | python -m json.tool", "timeout": 10}
+```
 
 ### Check environment
 
-```bash
-# API key
-echo $DASHSCOPE_API_KEY
-
-# Model configuration
-echo $DJA_PLANNER_MODEL
-echo $DJA_SESSION_MODEL
+```json
+{"command": "echo $DASHSCOPE_API_KEY | head -c 10", "timeout": 10}
 ```
 
-### Validate plan without execution
+### View file content
 
-```bash
-djx apply --plan ./plans/plan_xxx.yaml --dry-run
-```
-
-### Check dataset schema
-
-```bash
-djx retrieve "inspect" --dataset ./data/input.jsonl --json | jq '.dataset_profile'
-```
-
-### Test CLI
-
-```bash
-djx --help
-djx retrieve "test" --top-k 1
+```json
+{"file_path": "./plans/plan_xxx.yaml"}
 ```
 
 ---
 
-## Debug Flags
+## Tool Execution Patterns
 
-| Flag | Command | Purpose |
-|------|---------|---------|
-| `--verbose` | All | Expanded output |
-| `--debug` | `djx` | Raw structured payloads |
-| `--dry-run` | `apply` | Validate without execution |
-| `--json` | `retrieve` | Machine-readable output |
+### Safe execution with validation
+
+```
+// 1. Validate plan first
+plan_validate(plan_payload=...)
+
+// 2. Dry run
+apply_recipe(plan_path="...", dry_run=true)
+
+// 3. Execute
+apply_recipe(plan_path="...", confirm=true)
+```
+
+### Incremental spec building
+
+```
+// Build and validate each spec
+build_dataset_spec(...) -> validate_dataset_spec(...)
+build_process_spec(...) -> validate_process_spec(...)
+build_system_spec(...) -> validate_system_spec(...)
+
+// Then assemble
+assemble_plan(...)
+```
 
 ---
 
-## Log Locations
+## File Operations for Debugging
 
-- Execution logs: `data/log/`
-- Recipes: `.djx/recipes/`
-- Plans: `plans/` or custom `--output` path
+### View log files
+
+```json
+{"file_path": "./data/log/export_xxx.txt"}
+```
+
+### View generated recipe
+
+```json
+{"file_path": "./.djx/recipes/plan_xxx.yaml"}
+```
+
+### View plan file
+
+```json
+{"file_path": "./plans/plan_xxx.yaml"}
+```
+
+---
+
+## Environment Variables
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `DASHSCOPE_API_KEY` | API key | - |
+| `DJA_SESSION_MODEL` | Session model | qwen3-max |
+| `DJA_PLANNER_MODEL` | Planner model | qwen3-max |
+| `DJA_MODEL_FALLBACKS` | Fallback models | - |
+| `DJA_LLM_THINKING` | Enable thinking | true |
 
 ---
 
 ## Still Stuck?
 
 1. Check all patches in `patches/` directory
-2. Verify environment variables are set correctly
-3. Try with `--verbose` or `--debug` for more details
-4. Test with a minimal dataset to isolate the issue
+2. Use `view_text_file` to inspect config files
+3. Use `execute_shell_command` to run diagnostics
+4. Try with simpler inputs to isolate the issue

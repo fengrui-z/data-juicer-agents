@@ -9,43 +9,28 @@ when:
 
 ## Problem
 
-API or authentication errors when running `djx plan` or `dj-agents`.
+API or authentication errors when executing tools that require LLM access.
 
 ## Symptoms
 
 - "API key not found"
 - "Unauthorized" or "401"
 - "Authentication failed"
-- "Invalid API key"
 
 ---
 
 ## Solution
 
-### Step 1: Set primary API key
+### Check current configuration
 
-```bash
-export DASHSCOPE_API_KEY="your_key"
+```json
+{"command": "echo $DASHSCOPE_API_KEY | head -c 10", "timeout": 10}
 ```
 
-Or use alternative:
+### Set API key via shell
 
-```bash
-export MODELSCOPE_API_TOKEN="your_key"
-```
-
-### Step 2: Verify key is set
-
-```bash
-echo $DASHSCOPE_API_KEY
-# Should print your key
-```
-
-### Step 3: For OpenAI-compatible endpoints
-
-```bash
-export DJA_OPENAI_BASE_URL="https://your-endpoint/v1"
-export DASHSCOPE_API_KEY="your_key"
+```json
+{"command": "export DASHSCOPE_API_KEY='your_key'", "timeout": 10}
 ```
 
 ---
@@ -58,18 +43,17 @@ The system checks in this order:
 
 ---
 
-## Model Configuration
+## Environment Variables
 
-```bash
-# Model for djx plan
-export DJA_PLANNER_MODEL="qwen3-max-2026-01-23"
-
-# Model for dj-agents
-export DJA_SESSION_MODEL="qwen3-max-2026-01-23"
-
-# Fallback models (comma-separated)
-export DJA_MODEL_FALLBACKS="qwen-max,qwen-plus"
-```
+| Variable | Purpose |
+|----------|---------|
+| `DASHSCOPE_API_KEY` | Primary API key |
+| `MODELSCOPE_API_TOKEN` | Alternative API key |
+| `DJA_OPENAI_BASE_URL` | Custom endpoint |
+| `DJA_SESSION_MODEL` | Session model |
+| `DJA_PLANNER_MODEL` | Planner model |
+| `DJA_MODEL_FALLBACKS` | Fallback models |
+| `DJA_LLM_THINKING` | Enable thinking mode |
 
 ---
 
@@ -77,18 +61,22 @@ export DJA_MODEL_FALLBACKS="qwen-max,qwen-plus"
 
 Some models don't support the thinking flag:
 
-```bash
-# Disable if model rejects thinking
-export DJA_LLM_THINKING="false"
+```json
+{"command": "export DJA_LLM_THINKING=false", "timeout": 10}
 ```
 
 ---
 
 ## Verify Configuration
 
-```bash
-# Test with simple retrieve command
-djx retrieve "test" --top-k 1
+Test with a simple retrieve:
 
-# If successful, API is configured correctly
+```json
+{
+  "intent": "test",
+  "top_k": 1,
+  "mode": "vector"
+}
 ```
+
+Vector mode doesn't require LLM, so if this works but LLM mode fails, the API key is the issue.

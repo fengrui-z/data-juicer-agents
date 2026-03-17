@@ -10,67 +10,46 @@ when:
 
 ## Problem
 
-Execution times out or takes too long.
+Tool execution times out.
 
 ## Symptoms
 
 - "Execution timed out"
-- Process hangs without output
+- Tool hangs without response
 - "Deadline exceeded"
 
 ---
 
 ## Solution
 
-### Increase execution timeout
+### apply_recipe timeout
 
-Default timeout is 300 seconds (5 minutes).
+Increase the `timeout` parameter:
 
-```bash
-# Increase to 30 minutes
-djx apply --plan ./plans/plan_xxx.yaml --yes --timeout 1800
-
-# Increase to 1 hour for very large datasets
-djx apply --plan ./plans/plan_xxx.yaml --yes --timeout 3600
+```json
+{
+  "plan_path": "./plans/plan_xxx.yaml",
+  "timeout": 1800,
+  "confirm": true
+}
 ```
 
----
+### execute_shell_command timeout
 
-## Planning Timeout
-
-Planning timeout is not configurable via CLI. If planning times out:
-
-### Option 1: Simplify intent
-
-```bash
-# Instead of complex intent
-djx plan "clean, deduplicate, filter by length, normalize, remove special chars" ...
-
-# Use simpler intent
-djx plan "clean and deduplicate text" ...
+```json
+{
+  "command": "your_command",
+  "timeout": 300
+}
 ```
 
-### Option 2: Reduce dataset for planning
+### execute_python_code timeout
 
-The planner samples the dataset. If the dataset is too large:
-
-```bash
-# Create a smaller sample for planning
-head -1000 ./data/large.jsonl > ./data/sample.jsonl
-
-# Plan with sample
-djx plan "clean data" --dataset ./data/sample.jsonl --export ./data/output.jsonl
-
-# Modify plan to use full dataset, then apply
-```
-
-### Option 3: Check model availability
-
-Slow responses might indicate model issues:
-
-```bash
-# Try a different model
-export DJA_PLANNER_MODEL="qwen-plus"
+```json
+{
+  "code": "your_code",
+  "timeout": 300
+}
 ```
 
 ---
@@ -86,13 +65,41 @@ export DJA_PLANNER_MODEL="qwen-plus"
 
 ---
 
-## Parallel Processing
+## Slow Operations
 
-For large datasets, consider using more processes:
+Operations that commonly need longer timeouts:
 
-```yaml
-# In the generated recipe
-np: 4  # Use 4 parallel processes
+| Tool | Default | Notes |
+|------|---------|-------|
+| `apply_recipe` | 300 | Increase for large datasets |
+| `execute_shell_command` | 120 | Increase for long commands |
+| `execute_python_code` | 120 | Increase for complex code |
+| `retrieve_operators` (llm mode) | - | May be slow with LLM |
+
+---
+
+## Reduce Processing Time
+
+### Smaller dataset for testing
+
+```json
+// Use inspect_dataset with smaller sample
+{"dataset_path": "./input.jsonl", "sample_size": 10}
 ```
 
-Note: This requires manual recipe editing after plan generation.
+### Dry run first
+
+```json
+// Validate without execution
+{"plan_path": "./plan.yaml", "dry_run": true}
+```
+
+---
+
+## Check Progress
+
+For long-running operations, check logs:
+
+```json
+{"file_path": "./data/log/export_xxx.txt"}
+```

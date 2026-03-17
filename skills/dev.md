@@ -1,6 +1,6 @@
 ---
 name: dev
-description: Generate custom operator scaffold
+description: Generate custom operator scaffold using develop_operator tool
 when:
   - user_intent contains ["custom", "new operator", "develop", "自定义", "新算子", "开发"]
   - no built-in operator matches user requirement
@@ -9,29 +9,35 @@ next: plan.md
 
 # Dev Skill
 
-Generate custom operator scaffold for Data-Juicer.
+Generate custom operator scaffold using the `develop_operator` tool.
 
-## Command
+## Tool
 
-```bash
-djx dev "<intent>" --operator-name <name> --output-dir <dir> [--type mapper|filter] [--smoke-check]
+**Tool:** `develop_operator`
+
+```json
+{
+  "intent": "Filter samples by sentiment score threshold",
+  "operator_name": "sentiment_threshold_filter",
+  "output_dir": "./custom_ops",
+  "operator_type": "filter",
+  "from_retrieve": "",
+  "smoke_check": true
+}
 ```
 
-## Required Arguments
+---
 
-| Argument | Description |
-|----------|-------------|
-| `intent` | Description of what the operator should do |
-| `--operator-name` | Operator name in snake_case |
-| `--output-dir` | Output directory for generated files |
+## Parameters
 
-## Optional Arguments
-
-| Argument | Default | Description |
-|----------|---------|-------------|
-| `--type` | auto | Operator type: `mapper` or `filter` |
-| `--from-retrieve` | None | Path to retrieve JSON for context |
-| `--smoke-check` | false | Run validation test after generation |
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `intent` | string | Required | Description of what the operator should do |
+| `operator_name` | string | "" | Operator name in snake_case |
+| `output_dir` | string | "" | Output directory for generated files |
+| `operator_type` | string | "" | Type: `mapper` or `filter` |
+| `from_retrieve` | string | "" | Path to retrieve results for context |
+| `smoke_check` | boolean | false | Run validation after generation |
 
 ---
 
@@ -39,34 +45,41 @@ djx dev "<intent>" --operator-name <name> --output-dir <dir> [--type mapper|filt
 
 ### Create a filter operator
 
-```bash
-djx dev "Filter samples by sentiment score above threshold" \
-    --operator-name sentiment_threshold_filter \
-    --output-dir ./custom_ops \
-    --type filter \
-    --smoke-check
+```json
+{
+  "intent": "Filter samples by sentiment score above threshold",
+  "operator_name": "sentiment_threshold_filter",
+  "output_dir": "./custom_ops",
+  "operator_type": "filter",
+  "smoke_check": true
+}
 ```
 
 ### Create a mapper operator
 
-```bash
-djx dev "Normalize Unicode characters to ASCII" \
-    --operator-name unicode_normalizer_mapper \
-    --output-dir ./custom_ops \
-    --type mapper
+```json
+{
+  "intent": "Normalize Unicode characters to ASCII",
+  "operator_name": "unicode_normalizer_mapper",
+  "output_dir": "./custom_ops",
+  "operator_type": "mapper"
+}
 ```
 
 ### With context from retrieve
 
-```bash
-# Step 1: Get similar operators for context
-djx retrieve "sentiment analysis" --json > context.json
+```json
+// Step 1: Save retrieve results
+retrieve_operators(intent="sentiment analysis", top_k=5)
+// Save output to ./context.json
 
-# Step 2: Generate with context
-djx dev "Filter by sentiment score" \
-    --operator-name sentiment_filter \
-    --output-dir ./custom_ops \
-    --from-retrieve context.json
+// Step 2: Generate with context
+{
+  "intent": "Filter by sentiment score",
+  "operator_name": "sentiment_filter",
+  "output_dir": "./custom_ops",
+  "from_retrieve": "./context.json"
+}
 ```
 
 ---
@@ -79,12 +92,41 @@ djx dev "Filter by sentiment score" \
 | `test_<name>.py` | Test scaffold |
 | `<name>_SUMMARY.md` | Usage documentation |
 
+---
+
+## Operator Types
+
+### Filter
+
+- Returns `True` to keep sample, `False` to drop
+- Use for: quality filtering, language filtering, length filtering
+
+```python
+class MyFilter(Filter):
+    def compute(self, sample):
+        return sample.get('score', 0) > self.threshold
+```
+
+### Mapper
+
+- Transforms and returns modified sample
+- Use for: text normalization, field extraction, format conversion
+
+```python
+class MyMapper(Mapper):
+    def process(self, sample):
+        sample['text'] = sample['text'].lower()
+        return sample
+```
+
+---
+
 ## Naming Convention
 
-| Type | Class Name Pattern |
-|------|-------------------|
-| Filter | `<Name>Filter` |
-| Mapper | `<Name>Mapper` |
+| Type | File Pattern | Class Pattern |
+|------|--------------|---------------|
+| Filter | `*_filter.py` | `*Filter` |
+| Mapper | `*_mapper.py` | `*Mapper` |
 
 Example: `sentiment_threshold_filter` -> `SentimentThresholdFilter`
 
@@ -92,46 +134,40 @@ Example: `sentiment_threshold_filter` -> `SentimentThresholdFilter`
 
 ## Complete Workflow
 
-```bash
-# 1. (Optional) Search similar operators
-djx retrieve "sentiment analysis" --json > context.json
+```
+// 1. (Optional) Find similar operators
+retrieve_operators(intent="sentiment analysis")
 
-# 2. Generate operator scaffold
-djx dev "Filter by sentiment score threshold" \
-    --operator-name sentiment_threshold_filter \
-    --output-dir ./custom_ops \
-    --type filter \
-    --from-retrieve context.json \
-    --smoke-check
+// 2. Generate scaffold
+develop_operator(
+  intent="Filter by sentiment score",
+  operator_name="sentiment_filter",
+  output_dir="./custom_ops",
+  operator_type="filter",
+  smoke_check=true
+)
 
-# 3. Edit generated code as needed
-# vim ./custom_ops/sentiment_threshold_filter.py
+// 3. Edit generated code if needed
+view_text_file(file_path="./custom_ops/sentiment_filter.py")
+write_text_file(file_path="./custom_ops/sentiment_filter.py", content="...")
 
-# 4. Use in plan
-djx plan "filter by sentiment" \
-    --dataset ./input.jsonl \
-    --export ./output.jsonl \
-    --custom-operator-paths ./custom_ops
-
-# 5. Execute
-djx apply --plan ./plans/plan_xxx.yaml --yes
+// 4. Use in planning with custom_operator_paths
+build_system_spec(custom_operator_paths=["./custom_ops"])
 ```
 
 ---
 
-## Operator Types
+## Using Custom Operators in Plans
 
-### Filter
+After creating a custom operator, include it in planning:
 
-- Decides whether to keep or drop a sample
-- Returns `True` to keep, `False` to drop
-- Use for: quality filtering, language filtering, length filtering
+```json
+// In build_system_spec
+{"custom_operator_paths": ["./custom_ops"]}
 
-### Mapper
-
-- Transforms a sample
-- Returns modified sample
-- Use for: text normalization, field extraction, format conversion
+// In build_process_spec
+{"operators": [{"name": "sentiment_filter", "params": {"threshold": 0.5}}]}
+```
 
 ---
 
@@ -140,7 +176,7 @@ djx apply --plan ./plans/plan_xxx.yaml --yes
 | Issue | Solution |
 |-------|----------|
 | Smoke check fails | Review generated code, fix errors |
-| Operator not found in plan | Verify `--custom-operator-paths` includes the directory |
-| Name mismatch | Use snake_case for `--operator-name` |
+| Operator not found | Verify path in `custom_operator_paths` |
+| Name mismatch | Use snake_case for `operator_name` |
 
 See [debug.md](debug.md) for detailed troubleshooting.

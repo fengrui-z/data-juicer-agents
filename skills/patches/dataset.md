@@ -9,14 +9,13 @@ when:
 
 ## Problem
 
-Dataset parsing fails or fields are not recognized.
+Dataset parsing fails in `inspect_dataset` or during execution.
 
 ## Symptoms
 
 - "Invalid JSONL format"
 - "Field 'text' not found"
 - "JSON parse error"
-- "Unexpected format"
 
 ---
 
@@ -24,23 +23,20 @@ Dataset parsing fails or fields are not recognized.
 
 ### Step 1: Validate JSONL format
 
-Each line must be valid JSON:
-
-```bash
-# Check first line
-head -1 ./data/input.jsonl | jq .
-
-# Check all lines (slow for large files)
-cat ./data/input.jsonl | jq -c . > /dev/null
+```json
+{"command": "head -1 ./input.jsonl | python -m json.tool", "timeout": 10}
 ```
 
-### Step 2: Check required fields
+### Step 2: Check file structure
 
-Default text field is `text`. Verify it exists:
+```json
+{"command": "head -5 ./input.jsonl", "timeout": 10}
+```
 
-```bash
-head -1 ./data/input.jsonl | jq 'keys'
-# Should include "text" or your text field
+### Step 3: Verify field names
+
+```json
+{"command": "head -1 ./input.jsonl | python -c \"import json,sys; print(json.load(sys.stdin).keys())\"", "timeout": 10}
 ```
 
 ---
@@ -51,21 +47,51 @@ head -1 ./data/input.jsonl | jq 'keys'
 ```jsonl
 {"text": "Sample 1", "id": 1}
 {"text": "Sample 2", "id": 2}
-{"text": "Sample 3", "id": 3}
 ```
 
 **Wrong - array format:**
 ```json
-[
-  {"text": "Sample 1"},
-  {"text": "Sample 2"}
-]
+[{"text": "Sample 1"}, {"text": "Sample 2"}]
 ```
 
 **Wrong - invalid JSON:**
 ```
 {text: "Missing quotes"}
-{"text": "Trailing comma",}
+```
+
+---
+
+## Using inspect_dataset
+
+```json
+{
+  "dataset_path": "./input.jsonl",
+  "sample_size": 5
+}
+```
+
+This will report detected fields and any parsing issues.
+
+---
+
+## Common Fixes
+
+### Convert array to JSONL
+
+```json
+{"command": "python -c \"import json; [print(json.dumps(x)) for x in json.load(open('input.json'))]\" > input.jsonl", "timeout": 60}
+```
+
+### Remove BOM
+
+```json
+{"command": "sed -i '' '1s/^\\xEF\\xBB\\xBF//' input.jsonl", "timeout": 10}
+```
+
+### Fix encoding
+
+```json
+{"command": "iconv -f ISO-8859-1 -t UTF-8 input.jsonl > input_utf8.jsonl", "timeout": 60}
 ```
 
 ---
@@ -74,74 +100,41 @@ head -1 ./data/input.jsonl | jq 'keys'
 
 If your dataset uses a different field name (e.g., `content` instead of `text`):
 
-The planner should detect this automatically. If not:
+Use hints in `build_dataset_spec`:
 
-```bash
-# Check schema with retrieve
-djx retrieve "inspect" --dataset ./data/input.jsonl --json
+```json
+{
+  "intent": "...",
+  "dataset_path": "./input.jsonl",
+  "export_path": "./output.jsonl",
+  "dataset_profile": { /* from inspect_dataset */ },
+  "text_keys_hint": ["content"]
+}
 ```
 
 ---
 
 ## Multimodal Datasets
 
-For image/video datasets, ensure the image field exists:
+For image datasets, verify image paths exist:
 
-```jsonl
-{"text": "Description", "image": "path/to/image.jpg"}
-{"text": "Another", "image": "path/to/image2.jpg"}
+```json
+{"command": "head -1 ./input.jsonl | python -c \"import json,sys,os; d=json.load(sys.stdin); print(os.path.exists(d.get('image','')))\"", "timeout": 10}
 ```
 
-Verify image paths are valid:
+Use image key hint if needed:
 
-```bash
-# Check first image path
-head -1 ./data/input.jsonl | jq -r '.image' | xargs ls -la
-```
-
----
-
-## Common Fixes
-
-### Fix 1: Convert array to JSONL
-
-```bash
-# If you have JSON array
-jq -c '.[]' input.json > input.jsonl
-```
-
-### Fix 2: Remove BOM or special characters
-
-```bash
-# Remove BOM
-sed -i '1s/^\xEF\xBB\xBF//' input.jsonl
-
-# Or on macOS
-sed -i '' '1s/^\xEF\xBB\xBF//' input.jsonl
-```
-
-### Fix 3: Fix encoding
-
-```bash
-# Convert to UTF-8
-iconv -f ISO-8859-1 -t UTF-8 input.jsonl > input_utf8.jsonl
-```
-
-### Fix 4: Add missing text field
-
-```bash
-# If your field is named 'content', add 'text' alias
-jq -c '. + {text: .content}' input.jsonl > input_with_text.jsonl
+```json
+{
+  "dataset_profile": { /* ... */ },
+  "image_key_hint": "image_path"
+}
 ```
 
 ---
 
-## Verify with retrieve
+## View File Content
 
-Use retrieve to check dataset profile:
-
-```bash
-djx retrieve "check dataset" --dataset ./data/input.jsonl --json
+```json
+{"file_path": "./input.jsonl", "ranges": [1, 10]}
 ```
-
-This probes the dataset schema and reports detected fields.

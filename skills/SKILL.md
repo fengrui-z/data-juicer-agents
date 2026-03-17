@@ -1,6 +1,6 @@
 ---
 name: data-juicer
-description: CLI toolbox for AI agents to process datasets with Data-Juicer operators
+description: Atomic tools for AI agents to process datasets with Data-Juicer operators
 auto_load: true
 ---
 
@@ -8,16 +8,30 @@ auto_load: true
 
 Load specific skills based on context state. This file is always loaded as the entry point.
 
+## Available Tools
+
+| Category | Tools |
+|----------|-------|
+| Context | `inspect_dataset` |
+| Plan | `build_dataset_spec`, `build_process_spec`, `build_system_spec`, `validate_*`, `assemble_plan`, `plan_validate`, `plan_save` |
+| Retrieve | `retrieve_operators` |
+| Apply | `apply_recipe` |
+| Dev | `develop_operator` |
+| Files | `view_text_file`, `write_text_file`, `insert_text_file` |
+| Process | `execute_shell_command`, `execute_python_code` |
+
+---
+
 ## Context -> Skill Mapping
 
 | Context State | Load Skill | Action |
 |---------------|------------|--------|
-| User wants to process dataset + no plan exists | [plan.md](plan.md) | Generate execution plan |
+| User wants to process dataset + no plan exists | [plan.md](plan.md) | Build and save plan |
 | Plan file exists (.yaml) | [apply.md](apply.md) | Execute the plan |
-| User asks about available operators | [retrieve.md](retrieve.md) | Search operators (optional) |
+| User asks about available operators | [retrieve.md](retrieve.md) | Search operators |
 | User needs custom operator | [dev.md](dev.md) | Generate operator scaffold |
 | User prefers conversational mode | [session.md](session.md) | Start dj-agents |
-| Execution failed / error occurred | [debug.md](debug.md) | Troubleshoot issues |
+| Tool execution failed / error occurred | [debug.md](debug.md) | Troubleshoot issues |
 
 ---
 
@@ -27,13 +41,13 @@ Load specific skills based on context state. This file is always loaded as the e
 User Request
     │
     ├─ "Process/clean/filter my dataset"
-    │   └─> plan.md -> apply.md
+    │   └─> plan.md (multi-step) -> apply.md
     │
     ├─ "I need a custom operator"
     │   └─> dev.md -> plan.md -> apply.md
     │
     ├─ "What operators are available?"
-    │   └─> retrieve.md (optional, plan.md does this internally)
+    │   └─> retrieve.md
     │
     ├─ "I want interactive mode"
     │   └─> session.md
@@ -46,38 +60,58 @@ User Request
 
 ## Standard Workflows
 
-### Workflow 1: Process Dataset (Most Common)
+### Workflow 1: Process Dataset (Tool Chain)
 
-```bash
-djx plan "<intent>" --dataset ./input.jsonl --export ./output.jsonl
-djx apply --plan ./plans/plan_xxx.yaml --yes
+```
+inspect_dataset
+    -> retrieve_operators
+    -> build_dataset_spec
+    -> build_process_spec
+    -> build_system_spec
+    -> assemble_plan
+    -> plan_validate
+    -> plan_save
+    -> apply_recipe
 ```
 
 ### Workflow 2: Custom Operator Development
 
-```bash
-djx dev "<intent>" --operator-name my_filter --output-dir ./custom_ops --type filter
-djx plan "<intent>" --dataset ./input.jsonl --export ./output.jsonl --custom-operator-paths ./custom_ops
-djx apply --plan ./plans/plan_xxx.yaml --yes
+```
+retrieve_operators (find similar)
+    -> develop_operator
+    -> (edit generated code)
+    -> plan workflow with custom_operator_paths
 ```
 
-### Workflow 3: Conversational Mode
+### Workflow 3: Quick Operator Search
 
-```bash
-dj-agents --dataset ./input.jsonl --export ./output.jsonl
+```
+retrieve_operators
 ```
 
 ---
 
-## Environment Variables (Quick Reference)
+## Tool Quick Reference
 
-| Variable | Purpose |
-|----------|---------|
-| `DASHSCOPE_API_KEY` | API credential (primary) |
-| `DJA_PLANNER_MODEL` | Model for `djx plan` |
-| `DJA_SESSION_MODEL` | Model for `dj-agents` |
+### inspect_dataset
+```json
+{"dataset_path": "./input.jsonl", "sample_size": 20}
+```
 
-See [debug.md](debug.md) for troubleshooting API issues.
+### retrieve_operators
+```json
+{"intent": "filter by text length", "top_k": 10, "mode": "auto"}
+```
+
+### apply_recipe
+```json
+{"plan_path": "./plans/plan_xxx.yaml", "dry_run": false, "timeout": 300, "confirm": true}
+```
+
+### develop_operator
+```json
+{"intent": "filter by sentiment", "operator_name": "sentiment_filter", "output_dir": "./custom_ops", "operator_type": "filter", "smoke_check": true}
+```
 
 ---
 
@@ -85,7 +119,7 @@ See [debug.md](debug.md) for troubleshooting API issues.
 
 | Skill | When to Load |
 |-------|--------------|
-| [plan.md](plan.md) | Generate plan from intent |
+| [plan.md](plan.md) | Build plan from intent (multi-step) |
 | [apply.md](apply.md) | Execute existing plan |
 | [retrieve.md](retrieve.md) | Explore operators |
 | [dev.md](dev.md) | Create custom operators |

@@ -16,7 +16,6 @@ Custom operator not found during plan validation or execution.
 - "Operator 'xxx' not found"
 - "Unknown operator"
 - Plan validation fails
-- Custom operator not recognized
 
 ---
 
@@ -24,27 +23,22 @@ Custom operator not found during plan validation or execution.
 
 ### Step 1: Verify operator file exists
 
-```bash
-ls ./custom_ops/
-# Should show: my_operator.py, test_my_operator.py, etc.
+```json
+{"command": "ls -la ./custom_ops/", "timeout": 10}
 ```
 
-### Step 2: Check operator name matches
+### Step 2: Check operator content
 
-The operator name in the plan must match the file name and class name:
+```json
+{"file_path": "./custom_ops/my_operator.py"}
+```
 
-| File Name | Class Name | Operator Name in Plan |
-|-----------|------------|----------------------|
-| `sentiment_filter.py` | `SentimentFilter` | `sentiment_filter` |
-| `my_mapper.py` | `MyMapper` | `my_mapper` |
+### Step 3: Include in build_system_spec
 
-### Step 3: Include path in plan command
-
-```bash
-djx plan "filter by sentiment" \
-    --dataset ./input.jsonl \
-    --export ./output.jsonl \
-    --custom-operator-paths ./custom_ops
+```json
+{
+  "custom_operator_paths": ["./custom_ops"]
+}
 ```
 
 ---
@@ -58,37 +52,56 @@ djx plan "filter by sentiment" \
 
 ### Examples
 
-**Filter:**
 ```
 File: sentiment_threshold_filter.py
 Class: SentimentThresholdFilter
-Usage: sentiment_threshold_filter
+Usage in build_process_spec: "sentiment_threshold_filter"
 ```
 
-**Mapper:**
+---
+
+## Correct Workflow
+
 ```
-File: unicode_normalizer_mapper.py
-Class: UnicodeNormalizerMapper
-Usage: unicode_normalizer_mapper
+// 1. Generate operator
+develop_operator(
+  intent="...",
+  operator_name="my_filter",
+  output_dir="./custom_ops",
+  operator_type="filter"
+)
+
+// 2. Include path in system spec
+build_system_spec(
+  custom_operator_paths=["./custom_ops"]
+)
+
+// 3. Use operator in process spec
+build_process_spec(
+  operators=[
+    {"name": "my_filter", "params": {"threshold": 0.5}}
+  ]
+)
 ```
 
 ---
 
 ## Multiple Custom Directories
 
-```bash
-djx plan "process data" \
-    --custom-operator-paths ./custom_ops,./more_ops
+```json
+{
+  "custom_operator_paths": ["./custom_ops", "./more_ops"]
+}
 ```
 
 ---
 
-## Verify Operator Structure
+## Operator Structure
 
-Minimum operator file structure:
+Minimum required structure:
 
 ```python
-from data_juicer.ops.filter import Filter  # or Mapper
+from data_juicer.ops.filter import Filter
 
 class MyCustomFilter(Filter):
     def __init__(self, threshold=0.5, **kwargs):
@@ -96,7 +109,6 @@ class MyCustomFilter(Filter):
         self.threshold = threshold
     
     def compute(self, sample):
-        # Return True to keep, False to drop
         return sample.get('score', 0) > self.threshold
 ```
 
@@ -105,29 +117,29 @@ class MyCustomFilter(Filter):
 ## Path Resolution
 
 Paths can be:
-- **Relative**: `./custom_ops` (relative to current directory)
-- **Absolute**: `/path/to/custom_ops`
+- **Relative**: `./custom_ops` (relative to working directory)
+- **Absolute**: `/full/path/to/custom_ops`
 
-```bash
-# Check current directory
-pwd
+Check current directory:
 
-# Use absolute path if relative doesn't work
-djx plan "..." --custom-operator-paths /full/path/to/custom_ops
+```json
+{"command": "pwd", "timeout": 10}
 ```
 
 ---
 
 ## Regenerate Operator
 
-If issues persist, regenerate with `djx dev`:
+If issues persist:
 
-```bash
-djx dev "my filter logic" \
-    --operator-name my_filter \
-    --output-dir ./custom_ops \
-    --type filter \
-    --smoke-check
+```json
+{
+  "intent": "my filter logic",
+  "operator_name": "my_filter",
+  "output_dir": "./custom_ops",
+  "operator_type": "filter",
+  "smoke_check": true
+}
 ```
 
-The `--smoke-check` flag validates the generated operator.
+The `smoke_check: true` validates the generated operator.

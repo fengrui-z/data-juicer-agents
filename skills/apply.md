@@ -1,6 +1,6 @@
 ---
 name: apply
-description: Execute a saved plan
+description: Execute a saved plan using apply_recipe tool
 when:
   - plan.yaml file exists
   - user_intent contains ["execute", "run", "apply", "执行", "运行"]
@@ -9,22 +9,31 @@ prev: plan.md
 
 # Apply Skill
 
-Execute a saved Data-Juicer plan.
+Execute a saved Data-Juicer plan using the `apply_recipe` tool.
 
-## Command
+## Tool
 
-```bash
-djx apply --plan <plan.yaml> [--yes] [--dry-run] [--timeout 300]
+**Tool:** `apply_recipe`
+
+```json
+{
+  "plan_path": "./plans/plan_xxx.yaml",
+  "dry_run": false,
+  "timeout": 300,
+  "confirm": true
+}
 ```
 
-## Arguments
+---
 
-| Argument | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `--plan` | Yes | - | Path to plan YAML file |
-| `--yes` | No | false | Skip confirmation prompt |
-| `--dry-run` | No | false | Validate only, don't execute |
-| `--timeout` | No | 300 | Execution timeout in seconds |
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `plan_path` | string | Required | Path to plan YAML file |
+| `dry_run` | boolean | false | Validate only, don't execute |
+| `timeout` | integer | 300 | Execution timeout in seconds (min: 1) |
+| `confirm` | boolean | false | Explicit confirmation before execution |
 
 ---
 
@@ -32,66 +41,57 @@ djx apply --plan <plan.yaml> [--yes] [--dry-run] [--timeout 300]
 
 ### Standard execution
 
-```bash
-djx apply --plan ./plans/plan_abc123.yaml --yes
+```json
+{
+  "plan_path": "./plans/plan_abc123.yaml",
+  "dry_run": false,
+  "timeout": 300,
+  "confirm": true
+}
 ```
 
-### Validate before execution
+### Validate without execution
 
-```bash
-djx apply --plan ./plans/plan_abc123.yaml --dry-run
+```json
+{
+  "plan_path": "./plans/plan_abc123.yaml",
+  "dry_run": true
+}
 ```
 
-### Large dataset (increase timeout)
+### Large dataset (extended timeout)
 
-```bash
-djx apply --plan ./plans/plan_abc123.yaml --yes --timeout 1800
+```json
+{
+  "plan_path": "./plans/plan_abc123.yaml",
+  "timeout": 1800,
+  "confirm": true
+}
 ```
 
 ---
 
 ## Behavior
 
-1. Loads plan YAML
+1. Loads plan YAML from `plan_path`
 2. Writes recipe to `.djx/recipes/<plan_id>.yaml`
-3. Executes `dj-process` (unless `--dry-run`)
-4. Reports execution status
-
-## Output
-
-```
-Execution ID: <id>
-Status: success
-Recipe: .djx/recipes/plan_abc123.yaml
-```
+3. Executes `dj-process` (unless `dry_run: true`)
+4. Returns execution status
 
 ---
 
-## Workflow Integration
+## Return Value
 
-### Standard 2-step flow
-
-```bash
-# Step 1: Generate plan
-djx plan "clean text data" --dataset ./input.jsonl --export ./output.jsonl
-
-# Step 2: Execute
-djx apply --plan ./plans/plan_xxx.yaml --yes
+```json
+{
+  "ok": true,
+  "execution_id": "...",
+  "status": "success",
+  "recipe_path": ".djx/recipes/plan_xxx.yaml"
+}
 ```
 
-### Safe execution pattern
-
-```bash
-# Validate first
-djx apply --plan ./plans/plan_xxx.yaml --dry-run
-
-# Then execute
-djx apply --plan ./plans/plan_xxx.yaml --yes
-```
-
----
-
-## Status Codes
+### Status Values
 
 | Status | Meaning |
 |--------|---------|
@@ -101,26 +101,51 @@ djx apply --plan ./plans/plan_xxx.yaml --yes
 
 ---
 
+## Workflow Integration
+
+### Complete planning -> execution flow
+
+```
+inspect_dataset
+    -> retrieve_operators
+    -> build_dataset_spec
+    -> build_process_spec
+    -> build_system_spec
+    -> assemble_plan
+    -> plan_validate
+    -> plan_save
+    -> apply_recipe  <-- This tool
+```
+
+### Safe execution pattern
+
+```
+# Step 1: Validate
+apply_recipe(plan_path="./plans/plan.yaml", dry_run=true)
+
+# Step 2: Execute
+apply_recipe(plan_path="./plans/plan.yaml", confirm=true)
+```
+
+---
+
+## Timeout Guidelines
+
+| Dataset Size | Recommended Timeout |
+|--------------|---------------------|
+| < 10K samples | 300 (default) |
+| 10K - 100K | 900 (15 min) |
+| 100K - 1M | 1800 (30 min) |
+| > 1M | 3600+ (1+ hour) |
+
+---
+
 ## Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
-| Timeout | Increase with `--timeout 1800` |
+| Plan file not found | Verify `plan_path` is correct |
+| Timeout | Increase `timeout` parameter |
 | Operator not found | Check custom operator paths in plan |
-| Dataset error | Verify input file exists and is valid JSONL |
 
 See [debug.md](debug.md) for detailed troubleshooting.
-
-### Common Errors
-
-**"Plan file not found"**
-```bash
-# Check plan exists
-ls ./plans/
-```
-
-**"Execution timeout"**
-```bash
-# Use longer timeout for large datasets
-djx apply --plan ./plans/plan_xxx.yaml --yes --timeout 3600
-```

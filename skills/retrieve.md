@@ -1,39 +1,37 @@
 ---
 name: retrieve
-description: Search operators by intent
+description: Search operators using retrieve_operators tool
 when:
   - user_intent contains ["search operator", "what operators", "find operator", "搜索算子", "有哪些算子", "查找"]
-priority: low
-note: Optional - djx plan already retrieves internally
 ---
 
 # Retrieve Skill
 
-Search Data-Juicer operators by natural language intent.
+Search Data-Juicer operators using the `retrieve_operators` tool.
 
-**Note**: This is an **optional** step. `djx plan` already retrieves operators internally.
+## Tool
 
-## When to Use
+**Tool:** `retrieve_operators`
 
-- Exploring available operators before planning
-- Debugging operator selection
-- Getting context for custom operator development
-
-## Command
-
-```bash
-djx retrieve "<intent>" [--top-k 10] [--mode auto|llm|vector] [--dataset <path>] [--json]
+```json
+{
+  "intent": "filter text by length",
+  "top_k": 10,
+  "mode": "auto",
+  "dataset_path": ""
+}
 ```
 
-## Arguments
+---
 
-| Argument | Default | Description |
-|----------|---------|-------------|
-| `intent` | Required | Natural language search query |
-| `--top-k` | 10 | Maximum number of results |
-| `--mode` | auto | Retrieval mode: `auto`, `llm`, or `vector` |
-| `--dataset` | None | Dataset for schema probing |
-| `--json` | false | Output in JSON format |
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `intent` | string | Required | Natural language search query |
+| `top_k` | integer | 10 | Maximum candidates to return (min: 1) |
+| `mode` | string | "auto" | Retrieval mode: `auto`, `llm`, or `vector` |
+| `dataset_path` | string | "" | Optional dataset for context |
 
 ---
 
@@ -41,84 +39,55 @@ djx retrieve "<intent>" [--top-k 10] [--mode auto|llm|vector] [--dataset <path>]
 
 ### Basic search
 
-```bash
-djx retrieve "filter text by length"
+```json
+{
+  "intent": "filter text by length",
+  "top_k": 10
+}
 ```
 
-### JSON output for scripting
-
-```bash
-djx retrieve "deduplicate images" --json
-```
-
-### With dataset context
-
-```bash
-djx retrieve "process multimodal data" --dataset ./data/multimodal.jsonl
-```
-
-### Limit results
-
-```bash
-djx retrieve "text cleaning" --top-k 5
-```
-
----
-
-## Output
-
-### Human-readable (default)
-
-```
-1. text_length_filter (0.95) - Filter samples by text length
-2. document_deduplicator (0.87) - Remove duplicate documents
-...
-```
-
-### JSON format (`--json`)
+### Search with dataset context
 
 ```json
 {
-  "candidates": [
-    {"operator_name": "text_length_filter", "description": "...", "score": 0.95}
-  ],
-  "source": "vector",
-  "notes": "..."
+  "intent": "deduplicate multimodal data",
+  "top_k": 15,
+  "dataset_path": "./data/multimodal.jsonl"
+}
+```
+
+### LLM-based retrieval
+
+```json
+{
+  "intent": "remove low quality text",
+  "mode": "llm",
+  "top_k": 8
 }
 ```
 
 ---
 
-## Use Cases
+## Return Value
 
-### 1. Exploration before planning
-
-```bash
-# See what's available
-djx retrieve "text quality filtering" --top-k 15
-
-# Then plan with knowledge
-djx plan "filter low quality text" --dataset ./input.jsonl --export ./output.jsonl
-```
-
-### 2. Context for custom operator
-
-```bash
-# Find similar operators
-djx retrieve "sentiment analysis" --json > context.json
-
-# Use as reference for development
-djx dev "sentiment filter" \
-    --operator-name sentiment_filter \
-    --output-dir ./custom_ops \
-    --from-retrieve context.json
-```
-
-### 3. Debugging operator selection
-
-```bash
-# Check what operators match your intent
-djx retrieve "clean HTML tags" --json | jq '.candidates[].operator_name'
+```json
+{
+  "ok": true,
+  "candidates": [
+    {
+      "operator_name": "text_length_filter",
+      "description": "Filter samples by text length",
+      "score": 0.95
+    },
+    {
+      "operator_name": "document_deduplicator",
+      "description": "Remove duplicate documents",
+      "score": 0.87
+    }
+  ],
+  "source": "vector",
+  "notes": "..."
+}
 ```
 
 ---
@@ -128,17 +97,74 @@ djx retrieve "clean HTML tags" --json | jq '.candidates[].operator_name'
 | Mode | Description |
 |------|-------------|
 | `auto` | Automatically choose best method |
-| `vector` | Semantic vector search |
-| `llm` | LLM-based matching |
+| `vector` | Semantic vector search (fast) |
+| `llm` | LLM-based matching (more accurate) |
 
 ---
 
-## Reminder
+## Use Cases
 
-For most use cases, skip this step and go directly to [plan.md](plan.md):
+### 1. Exploration before planning
 
-```bash
-djx plan "your intent" --dataset ./input.jsonl --export ./output.jsonl
+```json
+// Find available operators
+{"intent": "text quality filtering", "top_k": 15}
+
+// Then use results in build_process_spec
 ```
 
-The plan command handles retrieval internally.
+### 2. Context for custom operator development
+
+```json
+// Find similar operators
+{"intent": "sentiment analysis", "top_k": 5}
+
+// Then pass results to develop_operator
+```
+
+### 3. Check operator availability
+
+```json
+{"intent": "specific_operator_name", "top_k": 1}
+```
+
+---
+
+## Common Search Intents
+
+| Goal | Intent Example |
+|------|----------------|
+| Text length | "filter text by length" |
+| Deduplication | "remove duplicate documents" |
+| Language | "filter by language" |
+| Quality | "filter low quality text" |
+| Cleaning | "normalize whitespace" |
+| Multimodal | "deduplicate images" |
+
+---
+
+## Integration with Planning
+
+Use retrieved operators in `build_process_spec`:
+
+```json
+// After retrieve_operators returns candidates
+{
+  "operators": [
+    {"name": "text_length_filter", "params": {"min_len": 50}},
+    {"name": "document_deduplicator", "params": {}}
+  ]
+}
+```
+
+---
+
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| No results | Try broader/different intent |
+| Wrong operators | Be more specific in intent |
+| Slow retrieval | Use `mode: "vector"` for speed |
+
+See [debug.md](debug.md) for detailed troubleshooting.
