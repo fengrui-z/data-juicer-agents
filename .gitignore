@@ -149,3 +149,4 @@ data/log/
 data/monitor/
 plans/
 data_juicer_agents/tools/retrieve/retrieve_operators/vector_index_cache/
+skills/
