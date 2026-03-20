@@ -509,7 +509,7 @@ Data-Juicer provides 190+ operators in 8 categories. Below are the most commonly
 | Operator | Description |
 |---|---|
 | `entity_attribute_aggregator` | Aggregate entity attributes |
-| `most_relavant_entities_aggregator` | Find most relevant entities |
+| `most_relevant_entities_aggregator` | Find most relevant entities |
 | `nested_aggregator` | Hierarchical aggregation |
 | `meta_tags_aggregator` | Aggregate metadata tags |
 
