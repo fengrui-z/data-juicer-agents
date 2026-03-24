@@ -26,7 +26,7 @@ dependencies = [
     "jinja2>=3.1.6",
     "langchain-community",
     "psutil>=7.1.3",
-    "py-data-juicer>=1.4.0",
+    "py-data-juicer>=1.5.1",
     "streamlit>=1.51.0",
     "huggingface-hub<1.0",
     "faiss-cpu>=1.13.1",
@@ -36,6 +36,7 @@ dependencies = [
     "oyaml",
     "prompt-toolkit>=3.0.36",
     "rich>=13.7.0",
+    "rank-bm25>=0.2.2",
 ]
 
 [project.scripts]
