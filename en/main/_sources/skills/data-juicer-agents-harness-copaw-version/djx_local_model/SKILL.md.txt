@@ -69,10 +69,10 @@ ollama serve &
 ollama pull qwen3.5:0.8b
 
 # Balanced — better quality
-ollama pull qwen3.5:3b
+ollama pull qwen3.5:2b
 
 # High quality — best results, more resources
-ollama pull qwen3.5:7b
+ollama pull qwen3.5:4b
 ```
 
 ### Verify
@@ -92,8 +92,8 @@ curl http://localhost:11434/v1/models
 | Hardware | Recommended Model | Memory Usage |
 |----------|-------------------|--------------|
 | 8GB RAM | qwen3.5:0.8b | ~1GB |
-| 16GB RAM | qwen3.5:3b | ~3GB |
-| 32GB+ RAM | qwen3.5:7b | ~6GB |
+| 16GB RAM | qwen3.5:2b | ~2GB |
+| 32GB+ RAM | qwen3.5:4b | ~4GB |
 
 ---
 
