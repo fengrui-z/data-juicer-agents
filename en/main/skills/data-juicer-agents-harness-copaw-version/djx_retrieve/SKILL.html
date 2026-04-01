@@ -519,8 +519,44 @@
   <section id="data-juicer-skills-retrieve-operator-retrieval">
 <h1>Data-Juicer Skills: Retrieve (Operator Retrieval)<a class="headerlink" href="#data-juicer-skills-retrieve-operator-retrieval" title="Link to this heading">#</a></h1>
 <blockquote>
-<div><p><strong>Main flow</strong>: See the <code class="docutils literal notranslate"><span class="pre">data-juicer</span></code> skill. This skill provides detailed reference for retrieve_operators.</p>
+<div><p><strong>Main flow</strong>: See the <code class="docutils literal notranslate"><span class="pre">data-juicer</span></code> skill. This skill provides detailed reference for operator retrieval tools.</p>
 </div></blockquote>
+<hr class="docutils" />
+<section id="tool-overview">
+<h2>Tool Overview<a class="headerlink" href="#tool-overview" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Tool</p></th>
+<th class="head"><p>Surface</p></th>
+<th class="head"><p>Modes</p></th>
+<th class="head"><p>Use Case</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">retrieve_operators</span></code></p></td>
+<td><p>Harness (default)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">auto</span></code>, <code class="docutils literal notranslate"><span class="pre">bm25</span></code>, <code class="docutils literal notranslate"><span class="pre">regex</span></code></p></td>
+<td><p>Local retrieval, no API needed</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">retrieve_operators_api</span></code></p></td>
+<td><p>Full (not in harness)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">auto</span></code>, <code class="docutils literal notranslate"><span class="pre">llm</span></code>, <code class="docutils literal notranslate"><span class="pre">vector</span></code></p></td>
+<td><p>API-backed semantic retrieval</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">get_operator_info</span></code></p></td>
+<td><p>Harness</p></td>
+<td><p>—</p></td>
+<td><p>Inspect one operator’s parameter schema</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">list_operator_catalog</span></code></p></td>
+<td><p>Harness</p></td>
+<td><p>—</p></td>
+<td><p>Browse full operator catalog (fallback)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
 <hr class="docutils" />
 <section id="prerequisites">
 <h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Link to this heading">#</a></h2>
@@ -532,13 +568,13 @@
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><strong>LLM mode</strong></p></td>
+<tr class="row-even"><td><p><strong>retrieve_operators</strong> (local)</p></td>
+<td><p>No API key needed</p></td>
+<td><p>Runs locally</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>retrieve_operators_api</strong> (API)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">DASHSCOPE_API_KEY</span></code> is set</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">echo</span> <span class="pre">$DASHSCOPE_API_KEY</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><strong>Vector mode</strong></p></td>
-<td><p>No API Key needed</p></td>
-<td><p>Runs locally</p></td>
 </tr>
 </tbody>
 </table>
@@ -557,13 +593,16 @@
 <tr class="row-even"><td><p><strong>intent</strong></p></td>
 <td><p>Natural language description of the processing goal, used to retrieve matching operators</p></td>
 </tr>
-<tr class="row-odd"><td><p><strong>mode</strong></p></td>
-<td><p>Retrieval mode: <code class="docutils literal notranslate"><span class="pre">auto</span></code>, <code class="docutils literal notranslate"><span class="pre">llm</span></code>, <code class="docutils literal notranslate"><span class="pre">vector</span></code></p></td>
+<tr class="row-odd"><td><p><strong>mode (local)</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">retrieve_operators</span></code> modes: <code class="docutils literal notranslate"><span class="pre">auto</span></code> (routes to bm25/regex), <code class="docutils literal notranslate"><span class="pre">bm25</span></code>, <code class="docutils literal notranslate"><span class="pre">regex</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><strong>top_k</strong></p></td>
+<tr class="row-even"><td><p><strong>mode (API)</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">retrieve_operators_api</span></code> modes: <code class="docutils literal notranslate"><span class="pre">auto</span></code> (tries llm→vector), <code class="docutils literal notranslate"><span class="pre">llm</span></code>, <code class="docutils literal notranslate"><span class="pre">vector</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>top_k</strong></p></td>
 <td><p>Maximum number of candidates to return</p></td>
 </tr>
-<tr class="row-odd"><td><p><strong>operator</strong></p></td>
+<tr class="row-even"><td><p><strong>operator</strong></p></td>
 <td><p>Data processing unit containing name, type, description, params</p></td>
 </tr>
 </tbody>
@@ -573,16 +612,28 @@
 <hr class="docutils" />
 <section id="command-format">
 <h2>Command Format<a class="headerlink" href="#command-format" title="Link to this heading">#</a></h2>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>retrieve_operators<span class="w"> </span>--input-json<span class="w"> </span><span class="s1">&#39;{&quot;intent&quot;: &quot;&lt;description&gt;&quot;, &quot;top_k&quot;: 15}&#39;</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Local retrieval (harness default)</span>
+djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>retrieve_operators<span class="w"> </span>--input-json<span class="w"> </span><span class="s1">&#39;{&quot;intent&quot;: &quot;&lt;description&gt;&quot;, &quot;top_k&quot;: 15}&#39;</span>
+
+<span class="c1"># API-backed retrieval (full surface only, not in harness)</span>
+djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>retrieve_operators_api<span class="w"> </span>--input-json<span class="w"> </span><span class="s1">&#39;{&quot;intent&quot;: &quot;&lt;description&gt;&quot;, &quot;top_k&quot;: 15}&#39;</span>
+
+<span class="c1"># Inspect one operator&#39;s parameter schema</span>
+djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>get_operator_info<span class="w"> </span>--input-json<span class="w"> </span><span class="s1">&#39;{&quot;operator_name&quot;: &quot;&lt;operator_name&gt;&quot;}&#39;</span>
+
+<span class="c1"># Browse operator catalog (fallback)</span>
+djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>list_operator_catalog<span class="w"> </span>--input-json<span class="w"> </span><span class="s1">&#39;{&quot;include_parameters&quot;: false}&#39;</span>
 </pre></div>
 </div>
 <blockquote>
-<div><p><strong>Must use <code class="docutils literal notranslate"><span class="pre">djx</span> <span class="pre">tool</span> <span class="pre">run</span> <span class="pre">retrieve_operators</span> <span class="pre">--input-json</span> <span class="pre">'{...}'</span></code></strong>. Do not use <code class="docutils literal notranslate"><span class="pre">djx</span> <span class="pre">retrieve_operators</span></code>, <code class="docutils literal notranslate"><span class="pre">djx</span> <span class="pre">retrieve</span></code>, or other formats.</p>
+<div><p><strong>Must use <code class="docutils literal notranslate"><span class="pre">djx</span> <span class="pre">tool</span> <span class="pre">run</span> <span class="pre">&lt;tool_name&gt;</span> <span class="pre">--input-json</span> <span class="pre">'{...}'</span></code></strong>. Do not use <code class="docutils literal notranslate"><span class="pre">djx</span> <span class="pre">retrieve_operators</span></code>, <code class="docutils literal notranslate"><span class="pre">djx</span> <span class="pre">retrieve</span></code>, or other formats.</p>
 </div></blockquote>
 </section>
 <hr class="docutils" />
-<section id="input-schema">
-<h2>Input Schema<a class="headerlink" href="#input-schema" title="Link to this heading">#</a></h2>
+<section id="input-schemas">
+<h2>Input Schemas<a class="headerlink" href="#input-schemas" title="Link to this heading">#</a></h2>
+<section id="retrieve-operators-local">
+<h3>retrieve_operators (local)<a class="headerlink" href="#retrieve-operators-local" title="Link to this heading">#</a></h3>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>Parameter</p></th>
@@ -597,7 +648,59 @@
 <td><p>str</p></td>
 <td><p>Yes</p></td>
 <td><p>—</p></td>
-<td><p>Natural language description of the processing goal</p></td>
+<td><p>Natural language description, or regex pattern for <code class="docutils literal notranslate"><span class="pre">regex</span></code> mode</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">top_k</span></code></p></td>
+<td><p>int</p></td>
+<td><p>No</p></td>
+<td><p>10</p></td>
+<td><p>Maximum number of candidates to return</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">mode</span></code></p></td>
+<td><p>str</p></td>
+<td><p>No</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">auto</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">auto</span></code>, <code class="docutils literal notranslate"><span class="pre">bm25</span></code>, <code class="docutils literal notranslate"><span class="pre">regex</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">op_type</span></code></p></td>
+<td><p>str</p></td>
+<td><p>No</p></td>
+<td><p>—</p></td>
+<td><p>Type filter: <code class="docutils literal notranslate"><span class="pre">mapper</span></code>, <code class="docutils literal notranslate"><span class="pre">filter</span></code>, <code class="docutils literal notranslate"><span class="pre">deduplicator</span></code>, etc.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">tags</span></code></p></td>
+<td><p>list</p></td>
+<td><p>No</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[]</span></code></p></td>
+<td><p>Modality/resource tags (<code class="docutils literal notranslate"><span class="pre">text</span></code>, <code class="docutils literal notranslate"><span class="pre">image</span></code>, etc.), match-all semantics</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">dataset_path</span></code></p></td>
+<td><p>str</p></td>
+<td><p>No</p></td>
+<td><p>—</p></td>
+<td><p>Dataset path for automatic modality detection</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="retrieve-operators-api-api">
+<h3>retrieve_operators_api (API)<a class="headerlink" href="#retrieve-operators-api-api" title="Link to this heading">#</a></h3>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Parameter</p></th>
+<th class="head"><p>Type</p></th>
+<th class="head"><p>Required</p></th>
+<th class="head"><p>Default</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">intent</span></code></p></td>
+<td><p>str</p></td>
+<td><p>Yes</p></td>
+<td><p>—</p></td>
+<td><p>Plain-text description of the desired operators</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">top_k</span></code></p></td>
 <td><p>int</p></td>
@@ -611,11 +714,85 @@
 <td><p><code class="docutils literal notranslate"><span class="pre">auto</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">auto</span></code>, <code class="docutils literal notranslate"><span class="pre">llm</span></code>, <code class="docutils literal notranslate"><span class="pre">vector</span></code></p></td>
 </tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">op_type</span></code></p></td>
+<td><p>str</p></td>
+<td><p>No</p></td>
+<td><p>—</p></td>
+<td><p>Type filter: <code class="docutils literal notranslate"><span class="pre">mapper</span></code>, <code class="docutils literal notranslate"><span class="pre">filter</span></code>, <code class="docutils literal notranslate"><span class="pre">deduplicator</span></code>, etc.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">tags</span></code></p></td>
+<td><p>list</p></td>
+<td><p>No</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[]</span></code></p></td>
+<td><p>Modality/resource tags, match-all semantics</p></td>
+</tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">dataset_path</span></code></p></td>
 <td><p>str</p></td>
 <td><p>No</p></td>
 <td><p>—</p></td>
-<td><p>Dataset path for modality-aware retrieval</p></td>
+<td><p>Dataset path for automatic modality detection</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="get-operator-info">
+<h3>get_operator_info<a class="headerlink" href="#get-operator-info" title="Link to this heading">#</a></h3>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Parameter</p></th>
+<th class="head"><p>Type</p></th>
+<th class="head"><p>Required</p></th>
+<th class="head"><p>Default</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">operator_name</span></code></p></td>
+<td><p>str</p></td>
+<td><p>Yes</p></td>
+<td><p>—</p></td>
+<td><p>Canonical or approximate operator name to inspect</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="list-operator-catalog">
+<h3>list_operator_catalog<a class="headerlink" href="#list-operator-catalog" title="Link to this heading">#</a></h3>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Parameter</p></th>
+<th class="head"><p>Type</p></th>
+<th class="head"><p>Required</p></th>
+<th class="head"><p>Default</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">op_type</span></code></p></td>
+<td><p>str</p></td>
+<td><p>No</p></td>
+<td><p>—</p></td>
+<td><p>Type filter</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">tags</span></code></p></td>
+<td><p>list</p></td>
+<td><p>No</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[]</span></code></p></td>
+<td><p>Tag filter, match-all semantics</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">include_parameters</span></code></p></td>
+<td><p>bool</p></td>
+<td><p>No</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">false</span></code></p></td>
+<td><p>Include full parameter schemas (heavy, use cautiously)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">limit</span></code></p></td>
+<td><p>int</p></td>
+<td><p>No</p></td>
+<td><p>0</p></td>
+<td><p>Max operators to return (0 = all)</p></td>
 </tr>
 </tbody>
 </table>
@@ -624,9 +801,12 @@
 <div><p><strong>The field name is <code class="docutils literal notranslate"><span class="pre">intent</span></code>, not <code class="docutils literal notranslate"><span class="pre">query</span></code></strong>. Using <code class="docutils literal notranslate"><span class="pre">query</span></code> will cause <code class="docutils literal notranslate"><span class="pre">input_validation_failed</span></code>.</p>
 </div></blockquote>
 </section>
+</section>
 <hr class="docutils" />
 <section id="retrieval-mode-comparison">
 <h2>Retrieval Mode Comparison<a class="headerlink" href="#retrieval-mode-comparison" title="Link to this heading">#</a></h2>
+<section id="retrieve-operators-local-modes">
+<h3>retrieve_operators (local modes)<a class="headerlink" href="#retrieve-operators-local-modes" title="Link to this heading">#</a></h3>
 <div class="pst-scrollable-table-container"><table class="table">
 <thead>
 <tr class="row-odd"><th class="head"><p>Mode</p></th>
@@ -637,33 +817,63 @@
 </thead>
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">auto</span></code></p></td>
-<td><p>Yes (LLM)</p></td>
-<td><p>LLM first, vector fallback</p></td>
-<td><p><strong>Default recommended</strong>, highest accuracy</p></td>
+<td><p>No</p></td>
+<td><p>Routes to <code class="docutils literal notranslate"><span class="pre">regex</span></code> for regex-like queries, otherwise <code class="docutils literal notranslate"><span class="pre">bm25</span></code></p></td>
+<td><p><strong>Default recommended</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">bm25</span></code></p></td>
+<td><p>No</p></td>
+<td><p>BM25 keyword matching</p></td>
+<td><p>Deterministic keyword search</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">regex</span></code></p></td>
+<td><p>No</p></td>
+<td><p>Regex pattern matching on operator names</p></td>
+<td><p>When operator naming pattern is known</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="retrieve-operators-api-api-modes">
+<h3>retrieve_operators_api (API modes)<a class="headerlink" href="#retrieve-operators-api-api-modes" title="Link to this heading">#</a></h3>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Mode</p></th>
+<th class="head"><p>Requires API</p></th>
+<th class="head"><p>Behavior</p></th>
+<th class="head"><p>Use Case</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">auto</span></code></p></td>
+<td><p>Yes</p></td>
+<td><p>Tries <code class="docutils literal notranslate"><span class="pre">llm</span></code> first, falls back to <code class="docutils literal notranslate"><span class="pre">vector</span></code></p></td>
+<td><p>Highest accuracy when API available</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">llm</span></code></p></td>
 <td><p>Yes</p></td>
-<td><p>LLM-only semantic retrieval</p></td>
-<td><p>Highest semantic relevance</p></td>
+<td><p>LLM semantic ranking</p></td>
+<td><p>Best semantic relevance</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">vector</span></code></p></td>
-<td><p>No (local)</p></td>
-<td><p>Vector embedding similarity</p></td>
-<td><p>Private data, offline environments, no API</p></td>
+<td><p>Yes</p></td>
+<td><p>FAISS vector similarity</p></td>
+<td><p>Semantic search without LLM ranking</p></td>
 </tr>
 </tbody>
 </table>
 </div>
 <p><strong>Mode selection decision</strong>:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Do you have an API Key?
-├─ Yes → Use auto (default)
-└─ No → Use vector
-
-Is the data private?
-├─ Yes → Use vector (no cloud sending)
-└─ No → Use auto
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>In harness mode?
+├─ Yes → Use retrieve_operators (local, mode=auto)
+└─ No (full surface) →
+    Do you have an API Key?
+    ├─ Yes → Use retrieve_operators_api (mode=auto)
+    └─ No → Use retrieve_operators (mode=auto, already local)
 </pre></div>
 </div>
+</section>
 </section>
 <hr class="docutils" />
 <section id="intent-writing-guide">
@@ -818,7 +1028,7 @@ djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </spa
 </pre></div>
 </div>
 <blockquote>
-<div><p><strong>This is all the information you will get</strong>. No other tool can provide more operator details. Do not try to use <code class="docutils literal notranslate"><span class="pre">djx</span> <span class="pre">tool</span> <span class="pre">schema</span></code> for operators (it only supports the 8 djx tools).</p>
+<div><p><strong>After selecting a candidate</strong>, call <code class="docutils literal notranslate"><span class="pre">get_operator_info</span></code> to inspect its full parameter schema before filling <code class="docutils literal notranslate"><span class="pre">build_process_spec</span></code>. Do not guess parameter names from operator names alone.</p>
 </div></blockquote>
 </section>
 <hr class="docutils" />
@@ -832,16 +1042,16 @@ djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </spa
 </thead>
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">401</span> <span class="pre">Unauthorized</span></code></p></td>
-<td><p>Verify <code class="docutils literal notranslate"><span class="pre">DASHSCOPE_API_KEY</span></code> is correct</p></td>
+<td><p>API key issue; use <code class="docutils literal notranslate"><span class="pre">retrieve_operators</span></code> (local) instead, or verify <code class="docutils literal notranslate"><span class="pre">DASHSCOPE_API_KEY</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p>Empty results</p></td>
-<td><p>Retry with a broader intent</p></td>
+<td><p>Retry with a broader intent, or use <code class="docutils literal notranslate"><span class="pre">list_operator_catalog</span></code> as fallback</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">input_validation_failed</span></code></p></td>
 <td><p>Use <code class="docutils literal notranslate"><span class="pre">intent</span></code> instead of <code class="docutils literal notranslate"><span class="pre">query</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">auto</span></code> mode 401</p></td>
-<td><p>Explicitly use <code class="docutils literal notranslate"><span class="pre">mode=vector</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">invalid</span> <span class="pre">local</span> <span class="pre">retrieval</span> <span class="pre">mode</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">retrieve_operators</span></code> only accepts <code class="docutils literal notranslate"><span class="pre">auto</span></code>, <code class="docutils literal notranslate"><span class="pre">bm25</span></code>, <code class="docutils literal notranslate"><span class="pre">regex</span></code>; for <code class="docutils literal notranslate"><span class="pre">llm</span></code>/<code class="docutils literal notranslate"><span class="pre">vector</span></code>, use <code class="docutils literal notranslate"><span class="pre">retrieve_operators_api</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p>Operator results are not ideal</p></td>
 <td><p>Use a more specific description in retrieval, e.g., <code class="docutils literal notranslate"><span class="pre">normalize</span> <span class="pre">all</span> <span class="pre">whitespace</span> <span class="pre">including</span> <span class="pre">internal</span> <span class="pre">spaces</span></code> instead of just <code class="docutils literal notranslate"><span class="pre">normalize</span> <span class="pre">whitespace</span></code></p></td>
@@ -924,9 +1134,14 @@ djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </spa
 </pre></div>
 </div>
 </section>
-<section id="use-vector-mode-for-private-data">
-<h3>3. Use vector Mode for Private Data<a class="headerlink" href="#use-vector-mode-for-private-data" title="Link to this heading">#</a></h3>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>retrieve_operators<span class="w"> </span>--input-json<span class="w"> </span><span class="s1">&#39;{&quot;intent&quot;: &quot;...&quot;, &quot;mode&quot;: &quot;vector&quot;}&#39;</span>
+<section id="local-retrieval-needs-no-api-key">
+<h3>3. Local Retrieval Needs No API Key<a class="headerlink" href="#local-retrieval-needs-no-api-key" title="Link to this heading">#</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">retrieve_operators</span></code> runs entirely locally. No cloud calls, no API key needed:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>retrieve_operators<span class="w"> </span>--input-json<span class="w"> </span><span class="s1">&#39;{&quot;intent&quot;: &quot;...&quot;, &quot;mode&quot;: &quot;auto&quot;}&#39;</span>
+</pre></div>
+</div>
+<p>For API-backed semantic retrieval (outside harness), use <code class="docutils literal notranslate"><span class="pre">retrieve_operators_api</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>retrieve_operators_api<span class="w"> </span>--input-json<span class="w"> </span><span class="s1">&#39;{&quot;intent&quot;: &quot;...&quot;, &quot;mode&quot;: &quot;vector&quot;}&#39;</span>
 </pre></div>
 </div>
 </section>
@@ -955,28 +1170,46 @@ djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </spa
 <hr class="docutils" />
 <section id="typical-usage">
 <h2>Typical Usage<a class="headerlink" href="#typical-usage" title="Link to this heading">#</a></h2>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Standard retrieval - describe all requirements at once</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Standard local retrieval - describe all requirements at once</span>
 djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>retrieve_operators<span class="w"> </span>--input-json<span class="w"> </span><span class="s1">&#39;{</span>
 <span class="s1">  &quot;intent&quot;: &quot;remove HTML tags, normalize whitespace, fix unicode encoding, filter text shorter than 50 characters, deduplicate documents&quot;,</span>
 <span class="s1">  &quot;top_k&quot;: 15</span>
 <span class="s1">}&#39;</span>
 
-<span class="c1"># Private data (local vector mode)</span>
-djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>retrieve_operators<span class="w"> </span>--input-json<span class="w"> </span><span class="s1">&#39;{&quot;intent&quot;: &quot;clean HTML, normalize whitespace, deduplicate&quot;, &quot;mode&quot;: &quot;vector&quot;}&#39;</span>
+<span class="c1"># Regex mode - when operator naming pattern is known</span>
+djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>retrieve_operators<span class="w"> </span>--input-json<span class="w"> </span><span class="s1">&#39;{&quot;intent&quot;: &quot;.*dedup.*&quot;, &quot;mode&quot;: &quot;regex&quot;}&#39;</span>
 
-<span class="c1"># More results</span>
-djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>retrieve_operators<span class="w"> </span>--input-json<span class="w"> </span><span class="s1">&#39;{&quot;intent&quot;: &quot;...&quot;, &quot;top_k&quot;: 20}&#39;</span>
+<span class="c1"># BM25 mode - deterministic keyword matching</span>
+djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>retrieve_operators<span class="w"> </span>--input-json<span class="w"> </span><span class="s1">&#39;{&quot;intent&quot;: &quot;filter images by resolution&quot;, &quot;mode&quot;: &quot;bm25&quot;}&#39;</span>
+
+<span class="c1"># Inspect a specific operator&#39;s parameters</span>
+djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>get_operator_info<span class="w"> </span>--input-json<span class="w"> </span><span class="s1">&#39;{&quot;operator_name&quot;: &quot;text_length_filter&quot;}&#39;</span>
+
+<span class="c1"># Browse catalog (fallback when retrieval is insufficient)</span>
+djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>list_operator_catalog<span class="w"> </span>--input-json<span class="w"> </span><span class="s1">&#39;{&quot;op_type&quot;: &quot;filter&quot;, &quot;include_parameters&quot;: false, &quot;limit&quot;: 20}&#39;</span>
 
 <span class="c1"># Combined with dataset modality</span>
 djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>retrieve_operators<span class="w"> </span>--input-json<span class="w"> </span><span class="s1">&#39;{&quot;intent&quot;: &quot;filter images&quot;, &quot;dataset_path&quot;: &quot;/data/images.jsonl&quot;}&#39;</span>
 
-<span class="c1"># Complex cleaning task</span>
-djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>retrieve_operators<span class="w"> </span>--input-json<span class="w"> </span><span class="s1">&#39;{</span>
-<span class="s1">  &quot;intent&quot;: &quot;clean HTML artifacts, normalize all whitespace including internal spaces, fix malformed unicode characters, filter by text length minimum 100 characters, deduplicate exact and near-duplicate documents&quot;,</span>
+<span class="c1"># API-backed retrieval (full surface only, requires API key)</span>
+djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>retrieve_operators_api<span class="w"> </span>--input-json<span class="w"> </span><span class="s1">&#39;{</span>
+<span class="s1">  &quot;intent&quot;: &quot;clean HTML artifacts, normalize all whitespace, deduplicate documents&quot;,</span>
 <span class="s1">  &quot;top_k&quot;: 20</span>
 <span class="s1">}&#39;</span>
 </pre></div>
 </div>
+</section>
+<hr class="docutils" />
+<section id="recommended-retrieval-pattern">
+<h2>Recommended Retrieval Pattern<a class="headerlink" href="#recommended-retrieval-pattern" title="Link to this heading">#</a></h2>
+<ol class="arabic simple">
+<li><p>Use <code class="docutils literal notranslate"><span class="pre">retrieve_operators</span></code> with <code class="docutils literal notranslate"><span class="pre">mode=&quot;auto&quot;</span></code> for ordinary natural-language operator discovery.</p></li>
+<li><p>Use <code class="docutils literal notranslate"><span class="pre">mode=&quot;bm25&quot;</span></code> when you want deterministic keyword retrieval.</p></li>
+<li><p>Use <code class="docutils literal notranslate"><span class="pre">mode=&quot;regex&quot;</span></code> when the operator naming pattern is already known.</p></li>
+<li><p>If <code class="docutils literal notranslate"><span class="pre">retrieve_operators</span></code> does not return valid candidates, call <code class="docutils literal notranslate"><span class="pre">list_operator_catalog</span></code> as a fallback.</p></li>
+<li><p>Use <code class="docutils literal notranslate"><span class="pre">list_operator_catalog</span></code> cautiously: <code class="docutils literal notranslate"><span class="pre">include_parameters=true</span></code> is heavy. Prefer filtered calls (<code class="docutils literal notranslate"><span class="pre">op_type</span></code>, <code class="docutils literal notranslate"><span class="pre">tags</span></code>, <code class="docutils literal notranslate"><span class="pre">limit</span></code>).</p></li>
+<li><p>After selecting a candidate, call <code class="docutils literal notranslate"><span class="pre">get_operator_info</span></code> before filling <code class="docutils literal notranslate"><span class="pre">build_process_spec</span></code>.</p></li>
+</ol>
 </section>
 <hr class="docutils" />
 <section id="skill-responsibilities">
@@ -1038,11 +1271,22 @@ djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </spa
   </div>
   <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tool-overview">Tool Overview</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#prerequisites">Prerequisites</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#core-concepts">Core Concepts</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#command-format">Command Format</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#input-schema">Input Schema</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#retrieval-mode-comparison">Retrieval Mode Comparison</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#input-schemas">Input Schemas</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#retrieve-operators-local">retrieve_operators (local)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#retrieve-operators-api-api">retrieve_operators_api (API)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#get-operator-info">get_operator_info</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#list-operator-catalog">list_operator_catalog</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#retrieval-mode-comparison">Retrieval Mode Comparison</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#retrieve-operators-local-modes">retrieve_operators (local modes)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#retrieve-operators-api-api-modes">retrieve_operators_api (API modes)</a></li>
+</ul>
+</li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#intent-writing-guide">Intent Writing Guide</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#key-rule-describe-all-requirements-at-once">Key Rule: Describe All Requirements at Once</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#good-intents">Good Intents</a></li>
@@ -1056,11 +1300,12 @@ djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </spa
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#must-read-pitfalls">Must-Read Pitfalls</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parameter-name-is-intent-not-query">1. Parameter Name Is intent, Not query</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#do-not-guess-operator-names">2. Do Not Guess Operator Names</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#use-vector-mode-for-private-data">3. Use vector Mode for Private Data</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#local-retrieval-needs-no-api-key">3. Local Retrieval Needs No API Key</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ray-prefixed-operator-warning">Ray-Prefixed Operator Warning</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#typical-usage">Typical Usage</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#recommended-retrieval-pattern">Recommended Retrieval Pattern</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#skill-responsibilities">Skill Responsibilities</a></li>
 </ul>
   </nav></div>

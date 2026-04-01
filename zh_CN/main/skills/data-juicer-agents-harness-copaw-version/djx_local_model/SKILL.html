@@ -677,8 +677,12 @@ curl<span class="w"> </span>http://localhost:11434/v1/models
 </section>
 <section id="local-operator-retrieval">
 <h3>Local Operator Retrieval<a class="headerlink" href="#local-operator-retrieval" title="链接到此标题。">#</a></h3>
-<p>Use <code class="docutils literal notranslate"><span class="pre">mode=vector</span></code> to avoid LLM calls:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>retrieve_operators<span class="w"> </span>--input-json<span class="w"> </span><span class="s1">&#39;{&quot;intent&quot;: &quot;&lt;goal&gt;&quot;, &quot;top_k&quot;: 5, &quot;mode&quot;: &quot;vector&quot;}&#39;</span>
+<p><code class="docutils literal notranslate"><span class="pre">retrieve_operators</span></code> runs entirely locally — no API key, no cloud calls:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>retrieve_operators<span class="w"> </span>--input-json<span class="w"> </span><span class="s1">&#39;{&quot;intent&quot;: &quot;&lt;goal&gt;&quot;, &quot;top_k&quot;: 5}&#39;</span>
+</pre></div>
+</div>
+<p>After selecting a candidate, use <code class="docutils literal notranslate"><span class="pre">get_operator_info</span></code> to inspect its parameter schema:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>get_operator_info<span class="w"> </span>--input-json<span class="w"> </span><span class="s1">&#39;{&quot;operator_name&quot;: &quot;&lt;operator_name&gt;&quot;}&#39;</span>
 </pre></div>
 </div>
 </section>
@@ -711,7 +715,7 @@ curl<span class="w"> </span>http://localhost:11434/v1/models
 <td><p>Set to <code class="docutils literal notranslate"><span class="pre">false</span></code> for all local models</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">auto</span></code> mode 401 fallback</p></td>
-<td><p>Explicitly use <code class="docutils literal notranslate"><span class="pre">mode=vector</span></code></p></td>
+<td><p>Use <code class="docutils literal notranslate"><span class="pre">retrieve_operators</span></code> (already local, no API needed)</p></td>
 </tr>
 </tbody>
 </table>
@@ -727,9 +731,10 @@ curl<span class="w"> </span>http://localhost:11434/v1/models
 </pre></div>
 </div>
 </section>
-<section id="use-mode-vector-to-guarantee-local-execution">
-<h3>2. Use mode=vector to Guarantee Local Execution<a class="headerlink" href="#use-mode-vector-to-guarantee-local-execution" title="链接到此标题。">#</a></h3>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>retrieve_operators<span class="w"> </span>--input-json<span class="w"> </span><span class="s1">&#39;{&quot;intent&quot;: &quot;...&quot;, &quot;mode&quot;: &quot;vector&quot;}&#39;</span>
+<section id="retrieve-operators-is-already-local">
+<h3>2. retrieve_operators Is Already Local<a class="headerlink" href="#retrieve-operators-is-already-local" title="链接到此标题。">#</a></h3>
+<p>No need to specify a special mode — <code class="docutils literal notranslate"><span class="pre">retrieve_operators</span></code> runs entirely locally by default:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>retrieve_operators<span class="w"> </span>--input-json<span class="w"> </span><span class="s1">&#39;{&quot;intent&quot;: &quot;...&quot;, &quot;mode&quot;: &quot;auto&quot;}&#39;</span>
 </pre></div>
 </div>
 </section>
@@ -769,8 +774,8 @@ curl<span class="w"> </span>http://localhost:11434/v1/models
 <span class="c1"># 5. Inspect dataset</span>
 djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>inspect_dataset<span class="w"> </span>--input-json<span class="w"> </span><span class="s1">&#39;{&quot;dataset_path&quot;: &quot;/data/sensitive.jsonl&quot;, &quot;sample_size&quot;: 50}&#39;</span>
 
-<span class="c1"># 6. Retrieve operators locally</span>
-djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>retrieve_operators<span class="w"> </span>--input-json<span class="w"> </span><span class="s1">&#39;{&quot;intent&quot;: &quot;clean and filter sensitive data&quot;, &quot;mode&quot;: &quot;vector&quot;}&#39;</span>
+<span class="c1"># 6. Retrieve operators locally (already local, no mode=vector needed)</span>
+djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>retrieve_operators<span class="w"> </span>--input-json<span class="w"> </span><span class="s1">&#39;{&quot;intent&quot;: &quot;clean and filter sensitive data&quot;, &quot;top_k&quot;: 10}&#39;</span>
 
 <span class="c1"># 7. Continue with main flow...</span>
 </pre></div>
@@ -793,7 +798,7 @@ djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </spa
 <td><p><strong>djx_local_model (this skill)</strong></p></td>
 </tr>
 <tr class="row-even"><td><p>Local operator retrieval</p></td>
-<td><p>djx_retrieve (mode=vector)</p></td>
+<td><p>djx_retrieve (retrieve_operators, already local)</p></td>
 </tr>
 <tr class="row-odd"><td><p>Main flow</p></td>
 <td><p>data-juicer</p></td>
@@ -852,7 +857,7 @@ djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </spa
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#error-handling">Error Handling</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#must-read-pitfalls">Must-Read Pitfalls</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#always-verify-ollama-is-running">1. Always Verify Ollama Is Running</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#use-mode-vector-to-guarantee-local-execution">2. Use mode=vector to Guarantee Local Execution</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#retrieve-operators-is-already-local">2. retrieve_operators Is Already Local</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#never-send-private-data-to-the-cloud">3. Never Send Private Data to the Cloud</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#test-with-small-samples-before-processing">4. Test with Small Samples Before Processing</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pull-models-in-advance">5. Pull Models in Advance</a></li>

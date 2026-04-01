@@ -831,9 +831,9 @@ djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </spa
 <section id="key-configuration">
 <h3>Key Configuration<a class="headerlink" href="#key-configuration" title="链接到此标题。">#</a></h3>
 <ol class="arabic simple">
-<li><p><strong>Use vector mode for operator retrieval</strong></p></li>
+<li><p><strong>Use local retrieval for operators</strong> (already local, no API needed)</p></li>
 </ol>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>retrieve_operators<span class="w"> </span>--input-json<span class="w"> </span><span class="s1">&#39;{&quot;intent&quot;: &quot;...&quot;, &quot;top_k&quot;: 15, &quot;mode&quot;: &quot;vector&quot;}&#39;</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </span>retrieve_operators<span class="w"> </span>--input-json<span class="w"> </span><span class="s1">&#39;{&quot;intent&quot;: &quot;...&quot;, &quot;top_k&quot;: 15}&#39;</span>
 </pre></div>
 </div>
 <ol class="arabic simple" start="2">
@@ -1096,7 +1096,7 @@ djx<span class="w"> </span>tool<span class="w"> </span>run<span class="w"> </spa
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">401</span> <span class="pre">Unauthorized</span></code> (retrieve)</p></td>
 <td><p>Invalid or expired API Key</p></td>
-<td><p>Check <code class="docutils literal notranslate"><span class="pre">DASHSCOPE_API_KEY</span></code>, or use <code class="docutils literal notranslate"><span class="pre">mode=vector</span></code></p></td>
+<td><p>Use <code class="docutils literal notranslate"><span class="pre">retrieve_operators</span></code> (local, no API needed), or check <code class="docutils literal notranslate"><span class="pre">DASHSCOPE_API_KEY</span></code> for API retrieval</p></td>
 </tr>
 <tr class="row-even"><td><p>Empty operator results</p></td>
 <td><p>Intent too narrow or unclear</p></td>
